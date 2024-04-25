@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "*.sexp": "wolfram",
+        "avcodec.h": "c",
+        "avdevice.h": "c",
+        "avformat.h": "c",
+        "swscale.h": "c",
+        "imgutils.h": "c"
+    }
+}
