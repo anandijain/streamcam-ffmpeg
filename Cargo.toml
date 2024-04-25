@@ -6,6 +6,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.82"
 ffmpeg-sys-the-third = "1.1.1"
-# ffmpeg-the-third = {version = "1.2.2", default-features = false}
-ffmpeg-the-third = { version = "1.2.2" }
+ffmpeg-the-third = { version = "1.2.2", features = ["image"] }
 image = "0.25.1"
