@@ -5,6 +5,8 @@
         "avdevice.h": "c",
         "avformat.h": "c",
         "swscale.h": "c",
-        "imgutils.h": "c"
+        "imgutils.h": "c",
+        "pixfmt.h": "c",
+        "pixdesc.h": "c"
     }
 }
