@@ -2,6 +2,7 @@
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
 #include <libavcodec/avcodec.h>
+#include <libavutil/timestamp.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
 #include <libavutil/pixfmt.h>
@@ -87,10 +88,6 @@ int save_frame_as_png(AVFrame *frame, const char *filename)
     return 0;
 }
 
-// ... (rest of your existing main function code)
-
-// Example usage:
-
 int get_stream_idx(const AVFormatContext *formatCtx, enum AVMediaType type)
 {
     for (int i = 0; i < formatCtx->nb_streams; i++)
@@ -109,12 +106,22 @@ int main()
 
     AVFormatContext *formatCtx = avformat_alloc_context();
     AVInputFormat *inputFormat = av_find_input_format("dshow"); // Use "dshow" on Windows, "v4l2" on Linux
-    avformat_open_input(&formatCtx, "video=Microsoft® LifeCam Studio(TM)", inputFormat, NULL);
+    AVDictionary *options = NULL;
+
+    // av_dict_set(&options, "video_size", "1280x720", 0); // set the highest available resolution
+    av_dict_set(&options, "video_size", "1920x1080", 0); // set the highest available resolution
+    av_dict_set(&options, "rtbufsize", "100M", 0);       // Increase the real-time buffer size
+
+    avformat_open_input(&formatCtx, "video=Microsoft® LifeCam Studio(TM)", inputFormat, &options);
+
     int stream_idx = get_stream_idx(formatCtx, AVMEDIA_TYPE_VIDEO);
     printf("Stream index: %d\n", stream_idx);
     AVCodecContext *codecCtx = avcodec_alloc_context3(NULL);
     AVCodecParameters *codecParams = formatCtx->streams[stream_idx]->codecpar;
     printf("stream codecpar res: %dx%d\n", codecParams->width, codecParams->height);
+
+    const char *camera_pix_fmt_name = av_get_pix_fmt_name(codecParams->format);
+    printf("camera pixel Format: %s\n", camera_pix_fmt_name);
 
     int did_get_codecCtx = avcodec_parameters_to_context(codecCtx, codecParams);
     AVCodec *codec = avcodec_find_decoder(codecCtx->codec_id);
@@ -125,7 +132,7 @@ int main()
     struct SwsContext *scaler = sws_getContext(codecCtx->width, codecCtx->height, codecCtx->pix_fmt, codecCtx->width, codecCtx->height, AV_PIX_FMT_RGB24, SWS_BILINEAR, NULL, NULL, NULL);
 
     const char *pix_fmt_name = av_get_pix_fmt_name(codecCtx->pix_fmt);
-    printf("Pixel Format: %s\n", pix_fmt_name);
+    printf("decoder pixel Format: %s\n", pix_fmt_name);
 
     AVFrame *frame = av_frame_alloc(); // this comes straight from the cam i guess
     printf("frame fmt %d\n", frame->format);
@@ -148,14 +155,16 @@ int main()
 
     AVPacket *pkt = av_packet_alloc();
     av_init_packet(pkt);
+    int isempty = pkt->data == NULL;
+    printf("before read_frame pkt is empty: %d\n", isempty);
+
+    // this is the line that "takes a picture"
     int did_read_frame = av_read_frame(formatCtx, pkt);
+
     printf("Did read frame: %d\n", did_read_frame);
-    int isempty = frame->data[0] == NULL;
-    printf("Frame is empty: %d\n", isempty);
+    isempty = pkt->data == NULL;
+    printf("after reading pkt is empty: %d\n", isempty);
     printf("Frame linesize: %d\n", frame->linesize[0]);
-    // printf("Frame linesize 1: %d\n", frame->linesize[1]);
-    // printf("Frame linesize 2: %d\n", frame->linesize[2]);
-    // printf("Frame linesize 2: %d\n", frame->linesize[3]);
     printf("pkt size %d\n", pkt->size);
     printf("frame pkt size %d\n", frame->pkt_size);
     // frame->pkt_size
@@ -176,8 +185,13 @@ int main()
     printf("frame_rgb format= %s\n", av_get_pix_fmt_name(frame_rgb->format));
     save_frame_as_png(frame_rgb, "output.png");
 
+    // cleanup 
     avcodec_free_context(&codecCtx);
     sws_freeContext(scaler);
     avformat_close_input(&formatCtx);
+    av_dict_free(&options);
+    av_frame_free(&frame);
+    av_frame_free(&frame_rgb);
+    av_packet_free(&pkt);
     return 0;
 }
